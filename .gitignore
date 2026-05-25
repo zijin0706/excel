@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+*.egg-info/
+data/output/matched/*
+data/output/unmatched/*
+!data/output/matched/.gitkeep
+!data/output/unmatched/.gitkeep
+data/input/*
+!data/input/.gitkeep

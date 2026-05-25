@@ -1,0 +1,66 @@
+version: 1
+
+settings:
+  input_dir: "./data/input"
+  output_dir: "./data/output"
+  chunk_size: 300000
+  encoding: "utf-8"
+  duckdb:
+    memory_limit: "8GB"
+    threads: 4
+
+sources:
+  - name: table1
+    files: "table1.csv"
+    format: csv
+    delimiter: ","
+    has_header: true
+
+  - name: table2
+    files: "table2.csv"
+    format: csv
+    delimiter: ","
+    has_header: true
+
+pipeline:
+  # 步骤1：合并两个表
+  - step: all_data
+    sql: |
+      SELECT a, b, c FROM table1
+      UNION ALL
+      SELECT a, b, c FROM table2
+
+  # 步骤2：按主数据编码分组，统计子数据
+  - step: aggregated
+    sql: |
+      SELECT
+        split_part(a, '_', 1) AS 主数据编码,
+        string_agg(a, ', ')     AS 子数据编码,
+        count(*)                AS 实际子数据数,
+        max(b)                  AS 总的子数量数,
+        sum(c)                  AS 金额相加值
+      FROM all_data
+      GROUP BY split_part(a, '_', 1)
+
+  # 步骤3：匹配成功（实际数 = 总数）
+  - step: matched
+    from: aggregated
+    filter: "实际子数据数 = 总的子数量数"
+
+  # 步骤4：匹配失败（实际数 != 总数）
+  - step: unmatched
+    from: aggregated
+    filter: "实际子数据数 != 总的子数量数"
+
+outputs:
+  - name: match_success
+    from: matched
+    path: "matched/"
+    prefix: "匹配成功"
+    format: xlsx
+
+  - name: match_fail
+    from: unmatched
+    path: "unmatched/"
+    prefix: "匹配失败"
+    format: xlsx

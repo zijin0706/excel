@@ -1,0 +1,99 @@
+# ============================================================
+# Excel Utils - Example Configuration
+# ============================================================
+# Copy this file to config.yaml and modify for your use case.
+# Run: python -m excel_utils.main config.yaml
+# ============================================================
+
+version: 1
+
+# --- Global settings ---
+settings:
+  input_dir: "./data/input"
+  output_dir: "./data/output"
+  chunk_size: 300000          # Rows per output file
+  encoding: "utf-8"
+  duckdb:
+    memory_limit: "8GB"
+    threads: 4
+    temp_directory: null      # Set a path to enable disk-spill for huge data
+
+# --- Data sources ---
+sources:
+  - name: customers
+    files: "customers*.csv"
+    format: csv
+    delimiter: ","
+    has_header: true
+    encoding: "utf-8"
+
+  - name: orders
+    files: "orders*.csv"
+    format: csv
+    delimiter: ","
+    has_header: true
+    encoding: "utf-8"
+
+# --- Pipeline: ordered steps ---
+# Each step produces a named temporary table.
+# Steps can reference sources or output from previous steps.
+pipeline:
+  # Step 1: Load customers with optional column selection & filter
+  - step: cust
+    from: customers
+    # select:                      # Optional: pick/rename columns
+    #   - id AS customer_id
+    #   - name
+    filter: "name IS NOT NULL"
+
+  # Step 2: Load orders with optional filter
+  - step: ord
+    from: orders
+    filter: "amount > 0"
+
+  # Step 3: Inner join → matched records
+  - step: matched
+    join:
+      type: inner                 # inner | left | right | anti_left | anti_right
+      left: cust
+      right: ord
+      keys:
+        - [customer_id, customer_id]
+
+  # Step 4: Anti join → customers WITHOUT orders
+  - step: cust_no_orders
+    join:
+      type: anti_left
+      left: cust
+      right: ord
+      keys:
+        - [customer_id, customer_id]
+
+  # Step 5: Anti join → orders WITHOUT customers
+  - step: ord_no_cust
+    join:
+      type: anti_right
+      left: cust
+      right: ord
+      keys:
+        - [customer_id, customer_id]
+
+# --- Output definitions ---
+outputs:
+  - name: matched_result
+    from: matched
+    path: "matched/"
+    prefix: "matched"
+    format: xlsx
+
+  - name: customers_without_orders
+    from: cust_no_orders
+    path: "unmatched/"
+    prefix: "customers_unmatched"
+    format: xlsx
+
+  - name: orders_without_customers
+    from: ord_no_cust
+    path: "unmatched/"
+    prefix: "orders_unmatched"
+    format: xlsx
