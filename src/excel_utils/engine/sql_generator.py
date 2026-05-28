@@ -46,7 +46,8 @@ class SQLGenerator:
                 f"SELECT * FROM read_csv_auto(\n"
                 f"  [{paths}],\n"
                 f"  header={header_str},\n"
-                f"  delim='{src.delimiter}'\n"
+                f"  delim='{src.delimiter}',\n"
+                f"  union_by_name=true\n"
                 f")"
             )
 

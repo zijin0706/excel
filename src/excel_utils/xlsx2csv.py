@@ -22,6 +22,7 @@ def convert_folder(
     output_dir: Path,
     sheet: Optional[str] = None,
     recursive: bool = False,
+    no_header: bool = False,
 ) -> list[Path]:
     """
     Convert all .xlsx/.xls files in input_dir to .csv files in output_dir.
@@ -55,8 +56,8 @@ def convert_folder(
             dst = output_dir / f"{stem}{suffix}.csv"
 
             logger.info("Converting %s → %s", src.name, dst.name)
-            df = pd.read_excel(src, sheet_name=sn)
-            df.to_csv(dst, index=False, encoding="utf-8")
+            df = pd.read_excel(src, sheet_name=sn, header=None if no_header else 0)
+            df.to_csv(dst, index=False, encoding="utf-8", header=not no_header)
 
             created.append(dst)
             logger.info("  %s rows written", f"{len(df):,}")
@@ -93,6 +94,11 @@ def main():
         help="Search subdirectories recursively",
     )
     parser.add_argument(
+        "--no-header",
+        action="store_true",
+        help="Do not write column headers (use when referencing columns by position like column0, column1)",
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
     )
@@ -112,7 +118,7 @@ def main():
         sys.exit(1)
 
     created = convert_folder(input_dir, output_dir, sheet=args.sheet,
-                             recursive=args.recursive)
+                             recursive=args.recursive, no_header=args.no_header)
 
     print(f"\nDone. {len(created)} .csv file(s) created in {output_dir}")
 

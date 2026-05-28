@@ -10,57 +10,70 @@ settings:
     threads: 4
 
 sources:
-  - name: table1
-    files: "table1.csv"
-    format: csv
-    delimiter: ","
-    has_header: true
-
-  - name: table2
-    files: "table2.csv"
+  - name: pending
+    files: "pending*.csv"
     format: csv
     delimiter: ","
     has_header: true
 
 pipeline:
-  # 步骤1：合并两个表
-  - step: all_data
-    sql: |
-      SELECT a, b, c FROM table1
-      UNION ALL
-      SELECT a, b, c FROM table2
-
-  # 步骤2：按主数据编码分组，统计子数据
+  # 步骤1：按主数据编码分组聚合
   - step: aggregated
     sql: |
       SELECT
-        split_part(a, '_', 1) AS 主数据编码,
-        string_agg(a, ', ')     AS 子数据编码,
-        count(*)                AS 实际子数据数,
-        max(b)                  AS 总的子数量数,
-        sum(c)                  AS 金额相加值
-      FROM all_data
-      GROUP BY split_part(a, '_', 1)
+        split_part("IdPedido", '-', 1)                                  AS main_code,
+        string_agg("IdPedido", ', ')                                     AS sub_codes,
+        count(*)                                                         AS actual_count,
+        max(try_cast("Quantidade de volumes" AS INTEGER))                AS expected_count,
+        first("Número de pedido cliente de pedido mestre")               AS "Número de pedido cliente de pedido mestre",
+        first("UF DESTINO")                                              AS "UF DESTINO",
+        first("CIDADE DESTINO")                                          AS "CIDADE DESTINO",
+        first("CEP DESTINO")                                             AS "CEP DESTINO",
+        first("VlrAdvalorem %")                                          AS "VlrAdvalorem %",
+        first("VlrGris %")                                               AS "VlrGris %",
+        first("ICMS税率 %")                                                AS "ICMS税率 %",
+        sum(try_cast("Valor da Nota Fiscal de Mercadoria" AS DOUBLE))    AS "Valor da Nota Fiscal de Mercadoria all",
+        sum(try_cast("Peso Calculado/Cobrado" AS DOUBLE))                AS "Peso Calculado/Cobrado all",
+        sum(try_cast("VlrFretePeso" AS DOUBLE))                          AS "VlrFretePeso all",
+        sum(try_cast("VlrAdvalorem" AS DOUBLE))                          AS "VlrAdvalorem all",
+        sum(try_cast("VlrGris" AS DOUBLE))                               AS "VlrGris all",
+        sum(try_cast("Valor ICMS" AS DOUBLE))                            AS "Valor ICMS all",
+        sum(try_cast("ValorTotalcomISS" AS DOUBLE))                      AS "ValorTotalcomISS all",
+        sum(try_cast("Pagamentos Totais" AS DOUBLE))                     AS "Pagamentos Totais all",
+        sum(try_cast("Peso Volumétrico" AS DOUBLE))                      AS "Peso Volumétrico all",
+        sum(try_cast("Peso Real" AS DOUBLE))                             AS "Peso Real all",
+        sum(try_cast("Peso Pedido" AS DOUBLE))                           AS "Peso Pedido all"
+      FROM pending
+      GROUP BY split_part("IdPedido", '-', 1)
 
-  # 步骤3：匹配成功（实际数 = 总数）
+  # 步骤2：匹配成功（汇总数据）
   - step: matched
     from: aggregated
-    filter: "实际子数据数 = 总的子数量数"
+    filter: "actual_count = expected_count"
 
-  # 步骤4：匹配失败（实际数 != 总数）
-  - step: unmatched
+  # 步骤3：匹配失败的主编码
+  - step: unmatched_codes
     from: aggregated
-    filter: "实际子数据数 != 总的子数量数"
+    filter: "actual_count != expected_count"
+
+  # 步骤4：匹配失败的原始明细数据
+  - step: unmatched_raw
+    sql: |
+      SELECT p.*
+      FROM pending p
+      WHERE split_part(p."IdPedido", '-', 1) IN (
+        SELECT main_code FROM unmatched_codes
+      )
 
 outputs:
-  - name: match_success
+  - name: 匹配成功
     from: matched
     path: "matched/"
     prefix: "匹配成功"
     format: xlsx
 
-  - name: match_fail
-    from: unmatched
+  - name: 匹配失败
+    from: unmatched_raw
     path: "unmatched/"
-    prefix: "匹配失败"
+    prefix: "匹配失败_源数据"
     format: xlsx
