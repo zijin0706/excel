@@ -1,41 +1,66 @@
 @echo off
-chcp 65001 >nul
+title Excel Utils Setup
+
 echo =========================================
-echo   Excel Utils 环境安装 (Windows)
+echo   Excel Utils - Setup (Windows)
 echo =========================================
 echo.
 
-:: 检查 Python
+echo [1/3] Checking Python...
+echo.
+
 where python >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ❌ 未找到 Python，请先安装
-    echo    下载地址：https://www.python.org/downloads/
-    echo    ⚠️ 安装时请勾选 "Add Python to PATH"
-    pause
-    exit /b 1
+if %errorlevel% equ 0 (
+    set PY_CMD=python
+) else (
+    where python3 >nul 2>&1
+    if %errorlevel% equ 0 (
+        set PY_CMD=python3
+    ) else (
+        echo ERROR: Python not found
+        echo.
+        echo Please install Python first:
+        echo   https://www.python.org/downloads/
+        echo.
+        echo IMPORTANT: Check "Add Python to PATH" during installation
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
-python --version
+echo Python found:
+%PY_CMD% --version
 echo.
 
-echo 正在安装依赖包...
-python -m pip install duckdb pyyaml pandas openpyxl --quiet
+echo [2/3] Upgrading pip...
+%PY_CMD% -m pip install --upgrade pip --quiet
+echo Done.
+echo.
+
+echo [3/3] Installing packages...
+echo This may take a few minutes...
+echo.
+%PY_CMD% -m pip install duckdb pyyaml pandas openpyxl streamlit
 
 if %errorlevel% equ 0 (
-    echo ✅ 依赖安装完成
+    echo.
+    echo =========================================
+    echo   Setup Complete!
+    echo =========================================
+    echo.
+    echo Usage:
+    echo   double-click run.bat     (command line)
+    echo   double-click launch.bat  (web interface)
+    echo.
 ) else (
-    echo ❌ 安装失败，请检查网络连接
-    pause
-    exit /b 1
+    echo.
+    echo ERROR: Installation failed
+    echo Please check your internet connection
+    echo.
+    echo Or try running manually:
+    echo   %PY_CMD% -m pip install duckdb pyyaml pandas openpyxl streamlit
+    echo.
 )
 
-echo.
-echo =========================================
-echo   安装成功！
-echo =========================================
-echo.
-echo 使用方法：
-echo   双击 run.bat 运行
-echo   或将数据文件拖到 run.bat 上
-echo.
 pause
