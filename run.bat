@@ -1,26 +1,39 @@
 @echo off
-chcp 65001 >nul
 cd /d "%~dp0"
 
 set CONFIG=config.yaml
 if not "%~1"=="" set CONFIG=%~1
 
 if not exist "%CONFIG%" (
-    echo ❌ 配置文件不存在: %CONFIG%
+    echo ERROR: Config file not found: %CONFIG%
+    pause
+    exit /b 1
+)
+
+set PY_CMD=
+where python >nul 2>&1
+if %errorlevel% equ 0 set PY_CMD=python
+if "%PY_CMD%"=="" (
+    where python3 >nul 2>&1
+    if %errorlevel% equ 0 set PY_CMD=python3
+)
+if "%PY_CMD%"=="" (
+    echo ERROR: Python not found
+    echo Please run setup.bat first
     pause
     exit /b 1
 )
 
 echo =========================================
-echo   Excel Utils - 数据匹配工具
+echo   Excel Utils
 echo =========================================
 echo.
-echo 执行完毕会自动显示结果
+echo Config: %CONFIG%
 echo.
 
 set PYTHONPATH=src
-python -m excel_utils.main "%CONFIG%"
+%PY_CMD% -m excel_utils.main "%CONFIG%"
 
 echo.
-echo 按任意键关闭...
-pause >nul
+echo Done.
+pause

@@ -1,17 +1,31 @@
 @echo off
-chcp 65001 >nul
 cd /d "%~dp0"
 
 echo =========================================
-echo   Excel 转 CSV 工具
+echo   Excel to CSV Converter
 echo =========================================
 echo.
-echo 正在将 data\input\ 下的 .xlsx 文件转为 .csv ...
+
+set PY_CMD=
+where python >nul 2>&1
+if %errorlevel% equ 0 set PY_CMD=python
+if "%PY_CMD%"=="" (
+    where python3 >nul 2>&1
+    if %errorlevel% equ 0 set PY_CMD=python3
+)
+if "%PY_CMD%"=="" (
+    echo ERROR: Python not found
+    echo Please run setup.bat first
+    pause
+    exit /b 1
+)
+
+echo Converting .xlsx files in data\input\ to .csv ...
 echo.
 
 set PYTHONPATH=src
-python -m excel_utils.xlsx2csv .\data\input .\data\input
+%PY_CMD% -m excel_utils.xlsx2csv .\data\input .\data\input
 
 echo.
-echo 转换完成，按任意键关闭...
-pause >nul
+echo Done.
+pause
