@@ -47,7 +47,8 @@ class SQLGenerator:
                 f"  [{paths}],\n"
                 f"  header={header_str},\n"
                 f"  delim='{src.delimiter}',\n"
-                f"  union_by_name=true\n"
+                f"  union_by_name=true,\n"
+                f"  all_varchar=1\n"
                 f")"
             )
 

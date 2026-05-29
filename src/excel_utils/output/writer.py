@@ -54,7 +54,17 @@ class OutputWriter:
         self, df: pd.DataFrame, filepath: Path, config: OutputConfig
     ) -> None:
         if config.format == FileFormat.XLSX:
-            df.to_excel(filepath, index=False, header=True, engine="openpyxl")
+            # 优先 xlsxwriter（列级别文本格式防科学计数法），不行就 openpyxl
+            try:
+                import xlsxwriter  # noqa: F401
+                with pd.ExcelWriter(filepath, engine="xlsxwriter") as writer:
+                    df.to_excel(writer, index=False, sheet_name="Sheet1")
+                    workbook = writer.book
+                    worksheet = writer.sheets["Sheet1"]
+                    text_fmt = workbook.add_format({"num_format": "@"})
+                    worksheet.set_column(0, len(df.columns) - 1, None, text_fmt)
+            except ImportError:
+                df.to_excel(filepath, index=False, header=True, engine="openpyxl")
         elif config.format == FileFormat.CSV:
             df.to_csv(filepath, index=False, header=True)
         elif config.format == FileFormat.PARQUET:
